@@ -24,3 +24,42 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@layer base {
+  html, body, #__next {
+    background: var(--background);
+    color: var(--foreground);
+  }
+
+  p, li, span, label, input, textarea, button {
+    color: var(--foreground);
+  }
+
+  a {
+    color: #2b458d;
+    text-decoration: none;
+  }
+
+  input, textarea, button {
+    color: var(--foreground);
+    background: transparent;
+  }
+
+  ::placeholder {
+    color: #9ca3af;
+    opacity: 1;
+  }
+
+  /* Increase contrast for commonly used Tailwind gray utilities */
+  .text-gray-400 { color: #6b7280 !important; }
+  .text-gray-500 { color: #4b5563 !important; }
+  .text-gray-600 { color: #374151 !important; }
+
+  @media (prefers-color-scheme: dark) {
+    a { color: #60a5fa; }
+    ::placeholder { color: #9ca3af; }
+    .text-gray-400 { color: #9ca3af !important; }
+    .text-gray-500 { color: #d1d5db !important; }
+    .text-gray-600 { color: #e5e7eb !important; }
+  }
+}
