@@ -12,12 +12,10 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/* Force light color-scheme across the site to avoid dark-mode conflicts */
+html { color-scheme: light; }
+
+/* Remove auto dark-mode styles: keep single light theme */
 
 body {
   background: var(--background);
@@ -40,9 +38,12 @@ body {
     text-decoration: none;
   }
 
-  input, textarea, button {
+  /* Make form controls clearly visible on light backgrounds */
+  input, textarea, button, select {
     color: var(--foreground);
-    background: transparent;
+    background: #ffffff;
+    border: 1px solid #e6e9ee;
+    border-radius: 6px;
   }
 
   ::placeholder {
@@ -55,11 +56,10 @@ body {
   .text-gray-500 { color: #4b5563 !important; }
   .text-gray-600 { color: #374151 !important; }
 
-  @media (prefers-color-scheme: dark) {
-    a { color: #60a5fa; }
-    ::placeholder { color: #9ca3af; }
-    .text-gray-400 { color: #9ca3af !important; }
-    .text-gray-500 { color: #d1d5db !important; }
-    .text-gray-600 { color: #e5e7eb !important; }
-  }
+  /* Always use high-contrast gray utilities for readability */
+  a { color: #2b458d; }
+  ::placeholder { color: #9ca3af; }
+  .text-gray-400 { color: #6b7280 !important; }
+  .text-gray-500 { color: #4b5563 !important; }
+  .text-gray-600 { color: #374151 !important; }
 }

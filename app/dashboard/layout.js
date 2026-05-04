@@ -11,7 +11,7 @@ export default function DashboardLayout({ children }) {
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Navbar />
       <AuthGuard>
-        <main className="flex-1 max-w-6xl mx-auto w-full px-6 py-8">{children}</main>
+        <main className="flex-1 max-w-7xl mx-auto w-full px-6 py-8">{children}</main>
       </AuthGuard>
       <Footer />
     </div>
