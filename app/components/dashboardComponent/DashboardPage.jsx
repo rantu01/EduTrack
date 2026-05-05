@@ -4,6 +4,28 @@ import { Minus, Plus, Lightbulb, ShieldCheck, ArrowRight, Smile, Frown, Meh } fr
 
 const Dashboard = () => {
   const [studyHours, setStudyHours] = useState(8);
+  const [analyzeDate, setAnalyzeDate] = useState(new Date().toISOString().slice(0, 10));
+  const [analyzing, setAnalyzing] = useState(false);
+  const [aiResult, setAiResult] = useState(null);
+
+  async function handleAnalyze() {
+    setAnalyzing(true)
+    setAiResult(null)
+    try {
+      const res = await fetch('/api/ai-analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date: analyzeDate, path: '/dashboard' }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error || 'Analysis failed')
+      setAiResult(data)
+    } catch (err) {
+      setAiResult({ error: err.message })
+    } finally {
+      setAnalyzing(false)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-[#f8faff] p-8 font-sans text-slate-800">
@@ -49,6 +71,32 @@ const Dashboard = () => {
           <div className="flex items-center gap-2 mb-8">
             <span className="text-2xl">📝</span>
             <h2 className="text-xl font-bold text-[#4a3728]">Today's Daily Input</h2>
+          </div>
+
+          {/* AI Analysis Panel */}
+          <div className="bg-white rounded-2xl p-6 border border-gray-100">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <p className="text-xs font-bold text-gray-400 uppercase">AI Analysis</p>
+                <p className="text-sm font-medium text-gray-700">Analyze backend entries by date</p>
+              </div>
+            </div>
+            <div className="flex gap-2 items-center mb-4">
+              <input type="date" value={analyzeDate} onChange={(e) => setAnalyzeDate(e.target.value)} className="rounded border px-3 py-2" />
+              <button onClick={handleAnalyze} disabled={analyzing} className="px-4 py-2 bg-[#001f3f] text-white rounded">
+                {analyzing ? 'Analyzing…' : 'Analyze Day'}
+              </button>
+            </div>
+
+            {aiResult && (
+              <div className="mt-2 text-sm text-gray-700">
+                {aiResult.error ? (
+                  <div className="text-red-600">Error: {aiResult.error}</div>
+                ) : (
+                  <AIResultView result={aiResult} />
+                )}
+              </div>
+            )}
           </div>
 
           <div className="space-y-8">
@@ -173,5 +221,49 @@ const InputSelector = ({ label, options, active }) => (
     </div>
   </div>
 );
+
+const AIResultView = ({ result }) => {
+  const ai = result.data || {}
+  const summary = ai.summary || ai?.summary || result.summary || ai?.raw || ''
+  const recommendedActions = ai.recommendedActions || ai.recommended_actions || []
+  const recommendedReading = ai.recommendedReading || ai.recommended_reading || []
+  const quickTip = ai.quickTip || ai.quick_tip || ''
+  const [open, setOpen] = React.useState(false)
+
+  return (
+    <div>
+      <button onClick={() => setOpen(!open)} className="text-left w-full pb-2 border-b mb-2">
+        <strong>Summary:</strong> {typeof summary === 'string' ? summary.slice(0, 120) : JSON.stringify(summary).slice(0,120)} {open ? '▲' : '▼'}
+      </button>
+      {open && (
+        <div className="space-y-3">
+          <div className="text-sm text-gray-700">{typeof summary === 'string' ? summary : JSON.stringify(summary, null, 2)}</div>
+          {recommendedActions.length > 0 && (
+            <div>
+              <p className="font-bold mt-2">Recommended Actions</p>
+              <ul className="list-disc pl-5 text-sm">
+                {recommendedActions.map((a, i) => <li key={i}>{a}</li>)}
+              </ul>
+            </div>
+          )}
+          {recommendedReading.length > 0 && (
+            <div>
+              <p className="font-bold mt-2">Recommended Reading</p>
+              <ul className="list-disc pl-5 text-sm">
+                {recommendedReading.map((r, i) => <li key={i}>{r}</li>)}
+              </ul>
+            </div>
+          )}
+          {quickTip && (
+            <div>
+              <p className="font-bold mt-2">Quick Tip</p>
+              <p className="text-sm">{quickTip}</p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default Dashboard;
