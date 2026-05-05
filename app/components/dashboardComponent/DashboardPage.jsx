@@ -1,12 +1,21 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link'
 import { Minus, Plus, Lightbulb, ShieldCheck, ArrowRight, Smile, Frown, Meh } from 'lucide-react';
+import { onAuthStateChanged } from 'firebase/auth'
+import { auth } from '../../../lib/firebase'
 
 const Dashboard = () => {
   const [studyHours, setStudyHours] = useState(8);
   const [analyzeDate, setAnalyzeDate] = useState(new Date().toISOString().slice(0, 10));
   const [analyzing, setAnalyzing] = useState(false);
   const [aiResult, setAiResult] = useState(null);
+  const [user, setUser] = useState(null)
+  const [weeklyInsight, setWeeklyInsight] = useState(null)
+  const [entriesLoading, setEntriesLoading] = useState(false)
+  const [summaryCard, setSummaryCard] = useState(null)
+  const [allEntries, setAllEntries] = useState([])
+  const [stats, setStats] = useState({ cgpa: 0, attendance: 0, pendingAssignments: 0, upcomingDeadline: null, daysWithEntries: 0 })
 
   async function handleAnalyze() {
     setAnalyzing(true)
@@ -27,6 +36,164 @@ const Dashboard = () => {
     }
   }
 
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (u) => setUser(u))
+    return () => unsub()
+  }, [])
+
+  useEffect(() => {
+    if (!user) {
+      setWeeklyInsight(null)
+      setSummaryCard(null)
+      return
+    }
+
+    async function fetchWeekly() {
+      try {
+        const res = await fetch(`/api/daily-input?userId=${encodeURIComponent(user.uid)}&insights=weekly`)
+        const data = await res.json()
+        if (res.ok) setWeeklyInsight(data)
+      } catch (err) {
+        console.error('weekly insight fetch', err)
+      }
+    }
+
+    async function loadEntriesForDate() {
+      setEntriesLoading(true)
+      try {
+        const res = await fetch(`/api/daily-input?userId=${encodeURIComponent(user.uid)}`)
+        const data = await res.json()
+        if (!res.ok) throw new Error(data?.error || 'Failed to fetch')
+
+        const dayStart = new Date(analyzeDate)
+        dayStart.setHours(0, 0, 0, 0)
+        const dayEnd = new Date(dayStart)
+        dayEnd.setDate(dayEnd.getDate() + 1)
+
+        const items = (data.items || []).filter(it => {
+          const d = new Date(it.createdAt || it.timestamp || it.created_at)
+          return d >= dayStart && d < dayEnd
+        })
+
+        const totalStudy = items.reduce((s, it) => s + (Number(it.studyTime) || 0), 0)
+        const totalWork = items.reduce((s, it) => s + (Number(it.workTime) || 0), 0)
+        const totalRest = items.reduce((s, it) => s + (Number(it.restTime) || 0), 0)
+        const hasDeadline = items.some(it => Boolean(it.upcomingDeadline))
+
+        const pressure = computePressureLevel({ upcomingDeadline: hasDeadline, workTime: totalWork, restTime: totalRest })
+        const progress = computeProgressScore({ studyTime: totalStudy, workTime: totalWork })
+
+        setSummaryCard({ pressure, progress, inputs: { totalStudy, totalWork, totalRest, hasDeadline }, count: items.length })
+      } catch (err) {
+        console.error('Load entries error', err)
+      } finally {
+        setEntriesLoading(false)
+      }
+    }
+
+    async function loadAllEntries() {
+      try {
+        const res = await fetch(`/api/daily-input?userId=${encodeURIComponent(user.uid)}`)
+        const data = await res.json()
+        if (res.ok) {
+          const items = data.items || []
+          setAllEntries(items)
+          computeStats(items)
+        }
+      } catch (err) {
+        console.error('Load all entries error', err)
+      }
+    }
+
+    fetchWeekly()
+    loadEntriesForDate()
+    loadAllEntries()
+  }, [user, analyzeDate])
+
+  function computePressureLevel({ upcomingDeadline, workTime, restTime }) {
+    let score = 0
+    if (upcomingDeadline) score += 3
+    score += Math.min(10, workTime / 30)
+    score -= Math.min(5, restTime / 15)
+    if (score < 0) score = 0
+    return Number(score.toFixed(2))
+  }
+
+  function computeProgressScore({ studyTime, workTime }) {
+    const completed = Math.min(240, Number(studyTime || 0) + Number(workTime || 0))
+    return Number(((completed / 240) * 100).toFixed(0))
+  }
+
+  function formatTimeRemaining(deadlineDate) {
+    const now = new Date()
+    const diff = deadlineDate - now
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+
+    if (days > 0) return `${days}d ${hours}h`
+    if (hours > 0) return `${hours} hrs`
+    return 'Soon'
+  }
+
+  function formatMinutesToHMS(minutes) {
+    if (minutes == null || isNaN(minutes)) return '—'
+    const totalSeconds = Math.round(Number(minutes) * 60)
+    const hrs = Math.floor(totalSeconds / 3600)
+    const mins = Math.floor((totalSeconds % 3600) / 60)
+    const secs = totalSeconds % 60
+    const pad = (n) => String(n).padStart(2, '0')
+    return `${hrs}h ${pad(mins)}m ${pad(secs)}s`
+  }
+
+  function computeStats(items) {
+    // Attendance: count unique days in past 7 days
+    const now = new Date()
+    const sevenDaysAgo = new Date(now)
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+
+    const uniqueDays = new Set()
+    items.forEach(it => {
+      const d = new Date(it.createdAt || it.timestamp)
+      if (d >= sevenDaysAgo && d <= now) {
+        uniqueDays.add(d.toISOString().split('T')[0])
+      }
+    })
+    const attendance = Math.round((uniqueDays.size / 7) * 100)
+
+    // CGPA: average progress from last 7 days entries
+    const recentItems = items.filter(it => {
+      const d = new Date(it.createdAt || it.timestamp)
+      return d >= sevenDaysAgo && d <= now
+    })
+    let cgpa = 3.5
+    if (recentItems.length > 0) {
+      const totalStudy = recentItems.reduce((s, it) => s + (Number(it.studyTime) || 0), 0)
+      const totalWork = recentItems.reduce((s, it) => s + (Number(it.workTime) || 0), 0)
+      const avgProgress = ((Math.min(240, totalStudy + totalWork) / 240) * 100) / 100
+      cgpa = Math.min(4.0, 2.5 + avgProgress * 1.5)
+    }
+
+    // Pending Assignments: count items with upcomingDeadline
+    const pendingCount = items.filter(it => it.upcomingDeadline).length
+
+    // Upcoming Deadline: find nearest future deadline
+    const deadlines = items
+      .filter(it => it.upcomingDeadline && typeof it.upcomingDeadline === 'string')
+      .map(it => ({ date: new Date(it.upcomingDeadline), title: it.taskTitle }))
+      .filter(d => d.date > now)
+      .sort((a, b) => a.date - b.date)
+
+    const nearest = deadlines[0] || null
+
+    setStats({
+      cgpa: Number(cgpa.toFixed(2)),
+      attendance,
+      pendingAssignments: pendingCount,
+      upcomingDeadline: nearest,
+      daysWithEntries: uniqueDays.size,
+    })
+  }
+
   return (
     <div className="min-h-screen bg-[#f8faff] p-8 font-sans text-slate-800">
       {/* Header */}
@@ -39,30 +206,53 @@ const Dashboard = () => {
         </p>
       </header>
 
-      {/* Top Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <StatCard 
-          label="CGPA Cumulative" 
-          value="3.84" 
-          subValue="+0.12" 
-          borderColor="border-blue-900" 
-          progress={70} 
-        />
-        <StatCard 
-          label="Attendance %" 
-          value="94.2%" 
-          showCheck 
-          borderColor="border-orange-400" 
-          progress={85} 
-          progressColor="bg-orange-400"
-        />
-        <StatCard 
-          label="Pending Assignments" 
-          value="03" 
-          subText="Due soon" 
-          borderColor="border-red-600" 
-          isAssignment 
-        />
+      <div className="flex items-center gap-2 mb-8">
+        <span className="text-2xl">📝</span>
+        <h2 className="text-xl font-bold text-[#4a3728]">Daily Avg Data</h2>
+      </div>
+      {/* Daily averages + Today's breakdown (replaces top stat cards) */}
+      <div className="mb-8">
+        <div className="bg-white rounded-2xl p-6 border border-gray-100 mb-4">
+          <p className="text-xs font-bold text-gray-400 uppercase">Daily Averages (7d)</p>
+          <div className="flex gap-6 mt-3">
+            <div className="flex-1">
+              <p className="text-sm font-bold">{weeklyInsight?.avgStudyTime != null ? formatMinutesToHMS(weeklyInsight.avgStudyTime) : '—'}</p>
+              <p className="text-xs text-gray-500">Avg Study</p>
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-bold">{weeklyInsight?.avgWorkTime != null ? formatMinutesToHMS(weeklyInsight.avgWorkTime) : '—'}</p>
+              <p className="text-xs text-gray-500">Avg Work</p>
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-bold">{weeklyInsight?.avgRestTime != null ? formatMinutesToHMS(weeklyInsight.avgRestTime) : '—'}</p>
+              <p className="text-xs text-gray-500">Avg Rest</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl p-6 border border-gray-100">
+          <p className="text-xs font-bold text-gray-400 uppercase">Today's Breakdown</p>
+          {entriesLoading ? (
+            <div className="text-sm text-gray-500 mt-2">Loading…</div>
+          ) : summaryCard ? (
+            <div className="flex gap-6 mt-3">
+              <div className="flex-1">
+                <p className="text-sm font-bold">{formatMinutesToHMS(summaryCard.inputs.totalStudy)}</p>
+                <p className="text-xs text-gray-500">Study</p>
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-bold">{formatMinutesToHMS(summaryCard.inputs.totalWork)}</p>
+                <p className="text-xs text-gray-500">Work</p>
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-bold">{formatMinutesToHMS(summaryCard.inputs.totalRest)}</p>
+                <p className="text-xs text-gray-500">Rest</p>
+              </div>
+            </div>
+          ) : (
+            <div className="text-sm text-gray-500 mt-2">No entries for selected date.</div>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -70,7 +260,7 @@ const Dashboard = () => {
         <div className="lg:col-span-7 bg-[#fff9f0] rounded-3xl p-8 border border-orange-100 shadow-sm">
           <div className="flex items-center gap-2 mb-8">
             <span className="text-2xl">📝</span>
-            <h2 className="text-xl font-bold text-[#4a3728]">Today's Daily Input</h2>
+            <h2 className="text-xl font-bold text-[#4a3728]">Daily Overview</h2>
           </div>
 
           {/* AI Analysis Panel */}
@@ -99,88 +289,72 @@ const Dashboard = () => {
             )}
           </div>
 
-          <div className="space-y-8">
-            {/* Study Hours */}
-            <div className="flex justify-between items-center">
-              <div>
-                <label className="block font-bold text-xs uppercase text-gray-500 tracking-wider">Study Hours</label>
-                <p className="text-[10px] text-gray-400">Total focus time today</p>
-              </div>
-              <div className="flex items-center bg-white border border-gray-200 rounded-lg overflow-hidden">
-                <button onClick={() => setStudyHours(Math.max(0, studyHours - 1))} className="p-3 hover:bg-gray-50"><Minus size={16} /></button>
-                <span className="px-6 font-bold text-lg">{studyHours.toString().padStart(2, '0')}</span>
-                <button onClick={() => setStudyHours(studyHours + 1)} className="p-3 hover:bg-gray-50"><Plus size={16} /></button>
-              </div>
-            </div>
+          {/* Weekly Insight + Summary (dynamic) */}
+          <div className="mt-6 grid grid-cols-1 gap-4">
 
-            {/* Selectors */}
-            <div className="grid grid-cols-2 gap-6">
-              <InputSelector label="Assignment Due" options={['Yes', 'No']} active="Yes" />
-              <InputSelector label="Attendance" options={['All', 'Some', 'Absent']} active="All" />
-            </div>
 
-            {/* Subject Difficulty */}
-            <div>
-              <label className="block font-bold text-xs uppercase text-gray-500 tracking-wider mb-2">Subject Difficulty</label>
-              <input 
-                type="text" 
-                defaultValue="Advanced Calculus (Highly Demanding)" 
-                className="w-full bg-transparent border-b border-gray-300 py-2 focus:outline-none focus:border-orange-400 font-medium"
-              />
-            </div>
+            <div className="bg-white rounded-2xl p-6 border border-gray-100">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Summary</p>
+              {entriesLoading ? (
+                <div className="text-sm text-gray-500">Loading summary…</div>
+              ) : summaryCard ? (
+                <>
+                  <div className="flex items-start justify-between">
+                    <p className="text-xs text-gray-500">Pressure: {summaryCard.pressure} — Progress: {summaryCard.progress}%</p>
+                    <div className="text-sm font-bold ml-4">Priority: {summaryCard.progress >= 75 ? 'Optimal' : summaryCard.progress >= 40 ? 'Moderate' : 'Needs Work'}</div>
+                  </div>
+                  <div className="mt-4">
+                    <Link href="/dashboard/daily-input">
+                      <button className="px-4 py-2 bg-[#1a365d] text-white rounded hover:bg-[#142e52] transition cursor-pointer">More Details</button>
+                    </Link>
+                  </div>
+                </>
+              ) : (
+                <div className="text-sm text-gray-500">No entries for selected date.</div>
+              )}
 
-            {/* Mood Selector */}
-            <div>
-              <label className="block font-bold text-xs uppercase text-gray-500 tracking-wider mb-4">Current Mood</label>
-              <div className="flex gap-4">
-                {[Frown, Frown, Meh, Smile, Smile].map((Icon, i) => (
-                  <button key={i} className={`p-3 rounded-xl border ${i === 3 ? 'bg-blue-100 border-blue-400' : 'bg-white border-gray-200'} hover:shadow-md transition-all`}>
-                    <Icon size={24} className={i === 3 ? 'text-blue-600' : 'text-gray-400'} />
-                  </button>
-                ))}
-              </div>
             </div>
-
-            <button className="w-full bg-[#001f3f] text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-[#052c52] transition-all group">
-              Get Smart Suggestion <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
-            </button>
           </div>
+
         </div>
 
         {/* Right Section */}
         <div className="lg:col-span-5 space-y-6">
-          {/* Personalized Insight */}
-          <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-xl relative overflow-hidden ring-4 ring-[#4a3728]/5">
-             <div className="flex items-center gap-2 mb-4">
-                <Lightbulb size={20} className="text-[#4a3728]" fill="#4a3728" />
-                <h3 className="font-bold text-sm text-[#4a3728]">Personalized Study Insight</h3>
-             </div>
-             <h4 className="text-xl font-black italic text-[#001f3f] mb-4">"Prioritize Rest Over Late Revision"</h4>
-             <p className="text-gray-500 text-sm leading-relaxed mb-6">
-               Based on your reported 8 study hours and a "Slightly Content" mood with an assignment due, your efficiency peak has passed. For Calculus tomorrow, focus on a quick 20-minute recap of core formulas and aim for 8 hours of sleep to ensure cognitive retention.
-             </p>
-             <div className="bg-blue-50/50 p-4 rounded-xl flex items-center gap-4 border border-blue-100/50">
-                <div className="bg-orange-100 p-2 rounded-lg text-orange-600"><ShieldCheck size={20} /></div>
-                <div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Recommended Action</p>
-                  <p className="text-sm font-bold text-gray-700">Review 'Integration by Parts' @ 9:00 PM</p>
-                </div>
-             </div>
+          <div className="bg-[#1a365d] rounded-2xl p-6 text-white">
+            <p className="text-[10px] font-bold text-blue-300 uppercase tracking-widest mb-2">Weekly Insight</p>
+            {weeklyInsight && weeklyInsight.count > 0 ? (
+              <div>
+                <div>Entries: {weeklyInsight.count}</div>
+                <div>Avg Study: {weeklyInsight.avgStudyTime} min</div>
+                <div>Avg Work: {weeklyInsight.avgWorkTime} min</div>
+                <div>Avg Rest: {weeklyInsight.avgRestTime} min</div>
+              </div>
+            ) : (
+              <div className="text-sm leading-relaxed opacity-90 font-medium">No weekly data yet. Submit entries to see insights.</div>
+            )}
           </div>
 
           {/* Upcoming Deadline */}
-          <div className="bg-[#1a365d] rounded-3xl p-6 text-white flex justify-between items-center">
-            <div>
-              <p className="text-xs font-medium text-blue-200 mb-1">Upcoming Deadline</p>
-              <h4 className="text-sm font-bold mb-4">CS402: Software Architecture - Final Project</h4>
-              <div className="text-4xl font-bold flex items-baseline gap-1">
-                48 <span className="text-sm font-normal text-blue-200 uppercase">hrs left</span>
+          {stats.upcomingDeadline ? (
+            <div className="bg-gradient-to-r from-[#1a365d] to-[#2d5a8c] rounded-3xl p-6 text-white flex justify-between items-center shadow-lg">
+              <div>
+                <p className="text-xs font-medium text-blue-300 mb-1">Upcoming Deadline</p>
+                <h4 className="text-sm font-bold mb-4 truncate max-w-xs">{stats.upcomingDeadline.title}</h4>
+                <div className="text-4xl font-bold flex items-baseline gap-1">
+                  {formatTimeRemaining(stats.upcomingDeadline.date)} <span className="text-sm font-normal text-blue-200 uppercase">left</span>
+                </div>
+                <p className="text-xs text-blue-300 mt-2">{stats.upcomingDeadline.date.toLocaleDateString()}</p>
               </div>
             </div>
-            <button className="bg-[#f3d1a7] text-black px-6 py-2 rounded-lg font-bold text-xs hover:bg-[#eac496] transition-colors">
-              SUBMIT NOW
-            </button>
-          </div>
+          ) : (
+            <div className="bg-gradient-to-r from-green-600 to-emerald-600 rounded-3xl p-6 text-white flex justify-between items-center shadow-lg">
+              <div>
+                <p className="text-xs font-medium text-green-200 mb-1">Status</p>
+                <h4 className="text-sm font-bold mb-4">No Upcoming Deadlines</h4>
+                <p className="text-xs text-green-200">Great job! Keep up the momentum.</p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -233,7 +407,7 @@ const AIResultView = ({ result }) => {
   return (
     <div>
       <button onClick={() => setOpen(!open)} className="text-left w-full pb-2 border-b mb-2">
-        <strong>Summary:</strong> {typeof summary === 'string' ? summary.slice(0, 120) : JSON.stringify(summary).slice(0,120)} {open ? '▲' : '▼'}
+        <strong>Summary:</strong> {typeof summary === 'string' ? summary.slice(0, 120) : JSON.stringify(summary).slice(0, 120)} {open ? '▲' : '▼'}
       </button>
       {open && (
         <div className="space-y-3">
