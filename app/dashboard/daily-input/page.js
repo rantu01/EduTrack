@@ -2,20 +2,68 @@
 import React, { useState, useEffect } from 'react'
 import { onAuthStateChanged } from 'firebase/auth'
 import { auth } from '../../../lib/firebase'
-import { Minus, Plus, Sparkles, AlertTriangle, BatteryLow, CheckCircle2, BookOpen, Brain, Quote } from 'lucide-react'
+import { Minus, Plus, Sparkles, AlertTriangle, BatteryLow, CheckCircle2, BookOpen, Brain, Quote, Smartphone, Gamepad, FileText, X } from 'lucide-react'
+import Swal from 'sweetalert2'
+
+const segmentTimes = [
+  { label: 'Early Morning', start: '06:00', end: '10:00' },
+  { label: 'Morning', start: '10:00', end: '14:00' },
+  { label: 'Afternoon', start: '14:00', end: '17:00' },
+  { label: 'Evening', start: '17:00', end: '21:00' },
+  { label: 'Night', start: '21:00', end: '06:00' },
+]
+
+const activityOptions = [
+  { value: 'study', label: 'Study', icon: '📚', bucket: 'study' },
+  { value: 'work', label: 'Work', icon: '💼', bucket: 'work' },
+  { value: 'rest', label: 'Rest', icon: '😴', bucket: 'rest' },
+  { value: 'mobile', label: 'Mobile', icon: '📱', bucket: 'mobile' },
+  { value: 'game', label: 'Game', icon: '🎮', bucket: 'game' },
+  { value: 'assignment', label: 'Assignment', icon: '📝', bucket: 'study' },
+  { value: 'reading', label: 'Reading', icon: '📖', bucket: 'study' },
+  { value: 'other', label: 'Other', icon: '✏️', bucket: 'other' },
+]
+
+const activityLabelMap = activityOptions.reduce((acc, option) => {
+  acc[option.value] = `${option.icon} ${option.label}`
+  return acc
+}, {})
+
+function timeToMinutes(time) {
+  const [hours, minutes] = time.split(':').map(Number)
+  return hours * 60 + minutes
+}
+
+function getDurationMinutes(startTime, endTime) {
+  const startMinutes = timeToMinutes(startTime)
+  const endMinutes = timeToMinutes(endTime)
+  return endMinutes > startMinutes ? endMinutes - startMinutes : endMinutes + 1440 - startMinutes
+}
+
+function createSegments() {
+  return segmentTimes.map((segment, index) => ({
+    id: `seg-${index}`,
+    label: segment.label,
+    startTime: segment.start,
+    endTime: segment.end,
+    durationMinutes: getDurationMinutes(segment.start, segment.end),
+    activity: '',
+    note: '',
+    distractionMinutes: '',
+    distractionReason: '',
+  }))
+}
 
 const SmartSuggestionEngine = () => {
   const [user, setUser] = useState(null)
 
   // inputs / data model
   const [mood, setMood] = useState('😊')
-  const [upcomingDeadline, setUpcomingDeadline] = useState(false)
-  const [deadlineDate, setDeadlineDate] = useState('')
-  const [taskTitle, setTaskTitle] = useState('')
-  const [taskDescription, setTaskDescription] = useState('')
-  const [studyTime, setStudyTime] = useState(120) // minutes
-  const [workTime, setWorkTime] = useState(60) // minutes
-  const [restTime, setRestTime] = useState(30) // minutes
+  const [deadlines, setDeadlines] = useState([])
+  const [unaccountedTime, setUnaccountedTime] = useState(0)
+  const [unaccountedActivity, setUnaccountedActivity] = useState('')
+
+  const [segments, setSegments] = useState(() => createSegments())
   const [timestamp, setTimestamp] = useState(new Date().toISOString())
 
   const [statusMsg, setStatusMsg] = useState('')
@@ -35,9 +83,41 @@ const SmartSuggestionEngine = () => {
     return () => unsub()
   }, [])
 
+  // calculate aggregated times from segments
+  function calculateTotalTimes() {
+    const study = segments.reduce((sum, segment) => sum + (segment.activity && ['study', 'assignment', 'reading'].includes(segment.activity) ? Number(segment.durationMinutes) || 0 : 0), 0)
+    const work = segments.reduce((sum, segment) => sum + (segment.activity === 'work' ? Number(segment.durationMinutes) || 0 : 0), 0)
+    const rest = segments.reduce((sum, segment) => sum + (segment.activity === 'rest' ? Number(segment.durationMinutes) || 0 : 0), 0)
+    const mobile = segments.reduce((sum, segment) => sum + (segment.activity === 'mobile' ? Number(segment.durationMinutes) || 0 : 0), 0)
+    const game = segments.reduce((sum, segment) => sum + (segment.activity === 'game' ? Number(segment.durationMinutes) || 0 : 0), 0)
+    const total = study + work + rest + mobile + game
+    const unaccounted = Math.max(0, 1440 - total) // 1440 minutes in 24 hours
+    return { study, work, rest, mobile, game, total, unaccounted }
+  }
+
+  function addDeadline() {
+    setDeadlines([...deadlines, { id: Date.now(), title: '', type: 'assignment', date: '' }])
+  }
+
+  function updateDeadline(id, changes) {
+    setDeadlines(deadlines.map(d => d.id === id ? { ...d, ...changes } : d))
+  }
+
+  function removeDeadline(id) {
+    setDeadlines(deadlines.filter(d => d.id !== id))
+  }
+
   useEffect(() => {
     computeActions()
-  }, [restTime, upcomingDeadline, studyTime])
+  }, [segments, deadlines])
+
+  function updateSegment(index, changes) {
+    setSegments((s) => {
+      const copy = [...s]
+      copy[index] = { ...copy[index], ...changes }
+      return copy
+    })
+  }
 
   // load daily entries and compute summary on mount and when date/user changes
   useEffect(() => {
@@ -52,9 +132,9 @@ const SmartSuggestionEngine = () => {
 
         // filter by analyzeDate
         const dayStart = new Date(analyzeDate)
-        dayStart.setHours(0,0,0,0)
+        dayStart.setHours(0, 0, 0, 0)
         const dayEnd = new Date(dayStart)
-        dayEnd.setDate(dayEnd.getDate()+1)
+        dayEnd.setDate(dayEnd.getDate() + 1)
 
         const items = (data.items || []).filter(it => {
           const d = new Date(it.createdAt || it.timestamp || it.created_at)
@@ -65,9 +145,9 @@ const SmartSuggestionEngine = () => {
         setDayEntries(items)
 
         // compute aggregated numbers
-        const totalStudy = items.reduce((s,it)=> s + (Number(it.studyTime)||0), 0)
-        const totalWork = items.reduce((s,it)=> s + (Number(it.workTime)||0), 0)
-        const totalRest = items.reduce((s,it)=> s + (Number(it.restTime)||0), 0)
+        const totalStudy = items.reduce((s, it) => s + (Number(it.studyTime) || 0), 0)
+        const totalWork = items.reduce((s, it) => s + (Number(it.workTime) || 0), 0)
+        const totalRest = items.reduce((s, it) => s + (Number(it.restTime) || 0), 0)
         const hasDeadline = items.some(it => Boolean(it.upcomingDeadline))
 
         const pressure = computePressureLevel({ upcomingDeadline: hasDeadline, workTime: totalWork, restTime: totalRest })
@@ -110,7 +190,7 @@ const SmartSuggestionEngine = () => {
   function computePressureLevel({ upcomingDeadline, workTime, restTime }) {
     // simple heuristic: deadline increases pressure, more workTime increases, more rest reduces
     let score = 0
-    if (upcomingDeadline) score += 3
+    if (upcomingDeadline || deadlines.length > 0) score += 3 * Math.max(1, deadlines.length)
     score += Math.min(10, workTime / 30) // every 30min adds pressure
     score -= Math.min(5, restTime / 15) // every 15min reduces
     if (score < 0) score = 0
@@ -118,18 +198,19 @@ const SmartSuggestionEngine = () => {
   }
 
   function computeProgressScore({ studyTime, workTime }) {
-    // assume ideal study+work target is 4 hours (240min)
-    const completed = Math.min(240, Number(studyTime || 0) + Number(workTime || 0))
-    return Number(((completed / 240) * 100).toFixed(0))
+    // assume ideal 24h target is 1440 minutes (can log up to 24h)
+    const completed = Math.min(1440, Number(studyTime || 0) + Number(workTime || 0))
+    return Number(((completed / 1440) * 100).toFixed(0))
   }
 
   function computeActions() {
+    const times = calculateTotalTimes()
     const cards = []
 
-    if (Number(restTime) < 30) {
+    if (Number(times.rest) < 30 && times.rest > 0) {
       cards.push({
         id: 'warning-rest',
-        icon: <BatteryLow className="text-red-600" />, 
+        icon: <BatteryLow className="text-red-600" />,
         title: 'Take a Break — Low Rest',
         text: 'Your rest time is under 30 minutes. Short breaks help concentration and recovery.',
         priority: 'Warning',
@@ -138,10 +219,10 @@ const SmartSuggestionEngine = () => {
       })
     }
 
-    if (upcomingDeadline && Number(studyTime) < 120) {
+    if (deadlines.length > 0 && Number(times.study) < 120) {
       cards.push({
         id: 'urgent-focus',
-        icon: <AlertTriangle className="text-orange-600" />, 
+        icon: <AlertTriangle className="text-orange-600" />,
         title: 'Urgent Focus',
         text: 'Deadline soon and study time is less than 2 hours — focus on priority tasks now.',
         priority: 'High',
@@ -150,12 +231,12 @@ const SmartSuggestionEngine = () => {
       })
     }
 
-    const pressure = computePressureLevel({ upcomingDeadline, workTime, restTime })
-    const progress = computeProgressScore({ studyTime, workTime })
+    const pressure = computePressureLevel({ upcomingDeadline: deadlines.length > 0, workTime: times.work, restTime: times.rest })
+    const progress = computeProgressScore({ studyTime: times.study, workTime: times.work })
 
     cards.push({
       id: 'summary',
-      icon: <CheckCircle2 className="text-blue-600" />, 
+      icon: <CheckCircle2 className="text-blue-600" />,
       title: 'Summary',
       text: `Pressure: ${pressure} — Progress: ${progress}%`,
       priority: progress >= 75 ? 'Optimal' : progress >= 40 ? 'Moderate' : 'Needs Work',
@@ -165,7 +246,7 @@ const SmartSuggestionEngine = () => {
       details: {
         pressure: pressure,
         progress: progress,
-        inputs: { upcomingDeadline, workTime: Number(workTime), restTime: Number(restTime), studyTime: Number(studyTime) },
+        inputs: { upcomingDeadline: deadlines.length > 0, workTime: Number(times.work), restTime: Number(times.rest), studyTime: Number(times.study) },
         pressureFormula: 'pressure = (upcomingDeadline?3:0) + min(10, workTime/30) - min(5, restTime/15)',
         progressFormula: 'progress% = min(240, studyTime+workTime)/240 * 100',
       },
@@ -177,24 +258,49 @@ const SmartSuggestionEngine = () => {
   async function handleSubmit(e) {
     e?.preventDefault()
     setStatusMsg('')
-    if (!taskTitle || taskTitle.trim() === '') {
-      setStatusMsg('Task Title is required.')
-      return
-    }
     if (!user) {
-      setStatusMsg('Please sign in to save data.')
+      Swal.fire({ icon: 'error', title: 'Error', text: 'Please sign in to save data.' })
       return
     }
+
+    if (segments.some((segment) => !segment.activity)) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Complete all segments',
+        text: 'Please choose what you did in each time block before saving.',
+      })
+      return
+    }
+
+    const times = calculateTotalTimes()
+    if (times.total === 0) {
+      Swal.fire({ icon: 'warning', title: 'No Data', text: 'Please choose activities for the time blocks.' })
+      return
+    }
+
+    const segmentSummary = segments.map((segment) => `${segment.label}: ${activityLabelMap[segment.activity] || segment.activity}${segment.note ? ` - ${segment.note}` : ''}`).join(' | ')
+    const distractionSummary = segments
+      .map((segment) => {
+        const minutes = Number(segment.distractionMinutes || 0)
+        if (!minutes) return null
+        return `${segment.label}: ${minutes} min${segment.distractionReason ? ` (${segment.distractionReason})` : ''}`
+      })
+      .filter(Boolean)
+      .join(' | ')
 
     const payload = {
       userId: user.uid,
       mood,
-      upcomingDeadline: upcomingDeadline ? (deadlineDate || true) : false,
-      taskTitle,
-      taskDescription,
-      studyTime: Number(studyTime),
-      workTime: Number(workTime),
-      restTime: Number(restTime),
+      taskTitle: 'Daily Log',
+      taskDescription: segmentSummary,
+      studyTime: times.study,
+      workTime: times.work,
+      restTime: times.rest,
+      upcomingDeadline: deadlines.length > 0 ? deadlines : false,
+      deadlines: deadlines,
+      segments,
+      unaccountedTime: times.unaccounted,
+      unaccountedActivity: unaccountedActivity,
       timestamp,
     }
 
@@ -206,17 +312,63 @@ const SmartSuggestionEngine = () => {
       })
       const data = await res.json()
       if (!res.ok) {
-        setStatusMsg(data?.error || 'Failed to save')
+        Swal.fire({ icon: 'error', title: 'Error', text: data?.error || 'Failed to save' })
         return
       }
-      setStatusMsg('Entry saved and advice generated.')
+      Swal.fire({
+        icon: 'success',
+        title: 'Success!',
+        text: 'Your daily entry has been saved and analyzed.',
+        timer: 2000,
+        timerProgressBar: true,
+      })
       // fetch latest weekly insight
       fetchWeeklyInsight()
       computeActions()
+      // reset segments and form
+      setSegments(createSegments())
+      setDeadlines([])
+      setUnaccountedActivity('')
     } catch (err) {
       console.error(err)
-      setStatusMsg('Network error')
+      Swal.fire({ icon: 'error', title: 'Error', text: 'Network error' })
     }
+  }
+
+  // modal for reading details
+  const [modalOpen, setModalOpen] = useState(false)
+  const [modalContent, setModalContent] = useState({ title: '', body: '' })
+
+  function generateReadingContent(title) {
+    // dynamic content based on collected data
+    const inputs = summaryCard?.inputs || { totalStudy: 0, totalWork: 0, totalRest: 0 }
+    const pressure = summaryCard?.pressure || 0
+    if (title.includes('Time Management')) {
+      const recommendedStudy = Math.max(60, Math.round((inputs.totalStudy || 120) * 0.9))
+      const recommendedWork = Math.max(30, Math.round((inputs.totalWork || 60) * 0.8))
+      const recommendedRest = Math.max(30, Math.round((inputs.totalRest || 30) * 1.2))
+      return `Based on your entries: study ≈ ${inputs.totalStudy} min, work ≈ ${inputs.totalWork} min, rest ≈ ${inputs.totalRest} min. Recommended: study ${recommendedStudy} min, work ${recommendedWork} min, rest ${recommendedRest} min. Try Pomodoro sessions (25/5) and batch similar tasks.`
+    }
+    if (title.includes('Burnout')) {
+      return pressure > 6 ? `Your pressure score is ${pressure}. You show high pressure — prioritize rest, reduce mobile/game time, and seek shorter focused sessions.` : `Your pressure is ${pressure}. Maintain balance: regular breaks, sleep, and avoid long continuous sessions.`
+    }
+    return 'Helpful study guidance will appear here based on your submitted entries.'
+  }
+
+  function handleReadingClick(title) {
+    const body = generateReadingContent(title)
+    setModalContent({ title, body })
+    setModalOpen(true)
+  }
+
+  function generateQuickTip() {
+    if (aiResult?.data?.quickTip) return aiResult.data.quickTip
+    if (summaryCard) {
+      if (summaryCard.progress < 40) return 'Start with the most important 20% of tasks — set a 25-minute timer and begin.'
+      if (summaryCard.progress < 75) return 'Good progress — continue with focused blocks and short rests.'
+      return 'Great job — maintain routine and gradually increase challenge.'
+    }
+    return 'Submit at least one entry to get tailored quick tips.'
   }
 
   return (
@@ -227,66 +379,158 @@ const SmartSuggestionEngine = () => {
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <div className="lg:col-span-4 space-y-6">
-          <form onSubmit={handleSubmit} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-4">
-            <div>
-              <label className="text-xs font-bold text-gray-500">Task Title *</label>
-              <input value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} className="mt-2 block w-full rounded border px-3 py-2" />
+        <div className="lg:col-span-6 space-y-6">
+
+
+          {/* Day segments: split 24h into 5 parts and collect per-segment activity */}
+          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm mt-4">
+            <div className="mb-4">
+              <p className="text-xs font-bold text-gray-500 mb-1">Day Segments (5 parts) - Record what you did each segment</p>
+              <p className="text-xs text-gray-400">Each block already has a time range. Select the activity and add a short note if you want more detail.</p>
+            </div>
+            <div className="space-y-4">
+              {segments.map((seg, idx) => {
+                return (
+                  <div key={seg.id} className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <h4 className="font-bold text-slate-800">{seg.label}</h4>
+                        <p className="text-xs text-blue-600 font-semibold">🕐 {seg.startTime} - {seg.endTime} · {seg.durationMinutes} mins</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="flex flex-col">
+                        <label className="text-xs text-gray-600 font-semibold mb-1">What did you do in this block?</label>
+                        <select
+                          value={seg.activity}
+                          onChange={(e) => updateSegment(idx, { activity: e.target.value })}
+                          className="rounded border border-blue-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white"
+                        >
+                          <option value="">Select activity</option>
+                          {activityOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.icon} {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex flex-col">
+                        <label className="text-xs text-gray-600 font-semibold mb-1">Short note</label>
+                        <input
+                          type="text"
+                          value={seg.note}
+                          onChange={(e) => updateSegment(idx, { note: e.target.value })}
+                          className="rounded border border-blue-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                          placeholder="e.g., solved algebra, watched lecture, lunch break"
+                        />
+                      </div>
+                      <div className="flex flex-col">
+                        <label className="text-xs text-gray-600 font-semibold mb-1">Distraction time (mins)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={seg.distractionMinutes}
+                          onChange={(e) => updateSegment(idx, { distractionMinutes: e.target.value })}
+                          className="rounded border border-blue-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                          placeholder="e.g., 5"
+                        />
+                      </div>
+                      <div className="flex flex-col">
+                        <label className="text-xs text-gray-600 font-semibold mb-1">Why distraction happened</label>
+                        <input
+                          type="text"
+                          value={seg.distractionReason}
+                          onChange={(e) => updateSegment(idx, { distractionReason: e.target.value })}
+                          className="rounded border border-blue-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                          placeholder="e.g., mobile, game, notification, chat"
+                        />
+                      </div>
+                    </div>
+                    {seg.activity && (
+                      <p className="mt-3 text-xs text-blue-700 font-semibold">Selected: {activityLabelMap[seg.activity] || seg.activity}</p>
+                    )}
+                  </div>
+                )
+              })}
             </div>
 
-            <div>
-              <label className="text-xs font-bold text-gray-500">Task Description</label>
-              <textarea value={taskDescription} onChange={(e) => setTaskDescription(e.target.value)} className="mt-2 block w-full rounded border px-3 py-2" rows={3} />
-            </div>
-
-            <div className="grid grid-cols-3 gap-2">
-              <label className="text-xs text-gray-500">Study Time (min)</label>
-              <label className="text-xs text-gray-500">Work Time (min)</label>
-              <label className="text-xs text-gray-500">Rest Time (min)</label>
-              <input type="number" value={studyTime} onChange={(e) => setStudyTime(Number(e.target.value))} className="mt-1 rounded border px-2 py-1" />
-              <input type="number" value={workTime} onChange={(e) => setWorkTime(Number(e.target.value))} className="mt-1 rounded border px-2 py-1" />
-              <input type="number" value={restTime} onChange={(e) => setRestTime(Number(e.target.value))} className="mt-1 rounded border px-2 py-1" />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div>
-                <label className="text-xs text-gray-500">Upcoming Deadline?</label>
-                <div className="mt-2">
-                  <button type="button" onClick={() => setUpcomingDeadline(!upcomingDeadline)} className={`px-3 py-1 rounded ${upcomingDeadline ? 'bg-blue-900 text-white' : 'bg-gray-100'}`}>
-                    {upcomingDeadline ? 'Yes' : 'No'}
-                  </button>
-                </div>
+            {/* Unaccounted time section */}
+            {calculateTotalTimes().unaccounted > 0 && (
+              <div className="mt-6 bg-amber-50 border-2 border-amber-300 rounded-xl p-4">
+                <h4 className="font-bold text-amber-900 mb-2">⏰ Unaccounted Time: {calculateTotalTimes().unaccounted} minutes</h4>
+                <p className="text-sm text-amber-800 mb-3">What did you do with this time? Sleep, eating, travel, social time, or something else?</p>
+                <textarea value={unaccountedActivity} onChange={(e) => setUnaccountedActivity(e.target.value)} className="w-full rounded border border-amber-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" placeholder="e.g., 180 mins sleep, 60 mins eating, 120 mins socializing..." rows={2} />
               </div>
+            )}
+          </div>
 
-              <div>
-                <label className="text-xs text-gray-500">Deadline date (optional)</label>
-                <input type="date" value={deadlineDate} onChange={(e) => setDeadlineDate(e.target.value)} className="mt-2 rounded border px-2 py-1" />
+          <form onSubmit={handleSubmit} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-4">
+            {/* Deadlines section */}
+            <div>
+              <div className="flex justify-between items-center mb-2">
+                <label className="text-xs font-bold text-gray-500">Deadlines & Tasks</label>
+                <button type="button" onClick={addDeadline} className="text-xs bg-blue-900 text-white px-2 py-1 rounded hover:bg-blue-800">+ Add</button>
+              </div>
+              <div className="space-y-2">
+                {deadlines.map((dl) => (
+                  <div key={dl.id} className="grid grid-cols-12 gap-2 items-center bg-gray-50 p-2 rounded">
+                    <input type="text" placeholder="e.g., Math assignment" value={dl.title} onChange={(e) => updateDeadline(dl.id, { title: e.target.value })} className="col-span-4 rounded border px-2 py-1 text-sm" />
+                    <select value={dl.type} onChange={(e) => updateDeadline(dl.id, { type: e.target.value })} className="col-span-3 rounded border px-2 py-1 text-sm">
+                      <option value="assignment">Assignment</option>
+                      <option value="exam">Exam</option>
+                      <option value="work">Work</option>
+                      <option value="project">Project</option>
+                      <option value="other">Other</option>
+                    </select>
+                    <input type="date" value={dl.date} onChange={(e) => updateDeadline(dl.id, { date: e.target.value })} className="col-span-4 rounded border px-2 py-1 text-sm" />
+                    <button type="button" onClick={() => removeDeadline(dl.id)} className="col-span-1 text-red-600 hover:text-red-800"><X size={18} /></button>
+                  </div>
+                ))}
+                {deadlines.length === 0 && <div className="text-xs text-gray-400 italic">No deadlines added yet. Click + Add to track tasks.</div>}
               </div>
             </div>
 
             <div>
               <label className="text-xs text-gray-500">Mood</label>
               <div className="flex gap-2 mt-2">
-                {['😫','😐','😊','🤩'].map((em) => (
-                  <button key={em} type="button" onClick={() => setMood(em)} className={`px-3 py-2 rounded-lg ${mood===em? 'bg-blue-50 ring-2 ring-blue-100':'bg-gray-50'}`}>{em}</button>
+                {['😫', '😐', '😊', '🤩'].map((em) => (
+                  <button key={em} type="button" onClick={() => setMood(em)} className={`px-3 py-2 rounded-lg ${mood === em ? 'bg-blue-50 ring-2 ring-blue-100' : 'bg-gray-50'}`}>{em}</button>
                 ))}
               </div>
             </div>
 
             <div className="flex items-center gap-2">
-              <button type="submit" className="flex-1 bg-[#001f3f] text-white py-2 rounded font-bold">Generate Advice <Sparkles size={14} className="ml-2" /></button>
+              <button type="submit" className="flex-1 bg-blue-900 hover:bg-blue-800 text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2 transition-colors">
+                <Sparkles size={16} />
+                Save & Analyze
+              </button>
             </div>
-            {statusMsg && <div className="text-sm text-red-600">{statusMsg}</div>}
+            {calculateTotalTimes().study + calculateTotalTimes().work + calculateTotalTimes().rest + calculateTotalTimes().mobile + calculateTotalTimes().game > 0 && (
+              <div className="text-xs text-gray-700 bg-blue-50 p-3 rounded-lg">
+                <div className="font-semibold mb-2">📊 Daily Breakdown:</div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>📚 Study: {calculateTotalTimes().study}m</div>
+                  <div>💼 Work: {calculateTotalTimes().work}m</div>
+                  <div>😴 Rest: {calculateTotalTimes().rest}m</div>
+                  <div>📱 Mobile: {calculateTotalTimes().mobile}m</div>
+                  <div>🎮 Game: {calculateTotalTimes().game}m</div>
+                  {calculateTotalTimes().unaccounted > 0 && <div>⏰ Unaccounted: {calculateTotalTimes().unaccounted}m</div>}
+                </div>
+              </div>
+            )}
           </form>
 
           <div className="bg-[#1a365d] rounded-2xl p-6 text-white">
             <p className="text-[10px] font-bold text-blue-300 uppercase tracking-widest mb-2">Weekly Insight</p>
             {weeklyInsight && weeklyInsight.count > 0 ? (
-              <div>
-                <div>Entries: {weeklyInsight.count}</div>
-                <div>Avg Study: {weeklyInsight.avgStudyTime} min</div>
-                <div>Avg Work: {weeklyInsight.avgWorkTime} min</div>
-                <div>Avg Rest: {weeklyInsight.avgRestTime} min</div>
+              <div className="space-y-1 text-sm">
+                <div>📊 Entries: {weeklyInsight.count}</div>
+                <div>📚 Avg Study: {weeklyInsight.avgStudyTime} min</div>
+                <div>💼 Avg Work: {weeklyInsight.avgWorkTime} min</div>
+                <div>😴 Avg Rest: {weeklyInsight.avgRestTime} min</div>
+                {weeklyInsight.avgMobileTime > 0 && <div>📱 Avg Mobile: {weeklyInsight.avgMobileTime} min</div>}
+                {weeklyInsight.avgGameTime > 0 && <div>🎮 Avg Game: {weeklyInsight.avgGameTime} min</div>}
+                {weeklyInsight.avgDistractions > 0 && <div>⚠️ Avg Distractions: {weeklyInsight.avgDistractions}</div>}
               </div>
             ) : (
               <div className="text-sm leading-relaxed opacity-90 font-medium">No weekly data yet. Submit entries to see insights.</div>
@@ -294,7 +538,7 @@ const SmartSuggestionEngine = () => {
           </div>
         </div>
 
-        <div className="lg:col-span-8 space-y-6">
+        <div className="lg:col-span-6 space-y-6">
           <div className="flex justify-between items-center">
             <h3 className="font-bold text-[11px] uppercase tracking-widest text-gray-400">Recommended Actions</h3>
             <div className="text-[10px] italic text-gray-500">Live Analysis Active</div>
@@ -324,26 +568,29 @@ const SmartSuggestionEngine = () => {
               }} disabled={analyzing} className="px-3 py-2 bg-[#001f3f] text-white rounded cursor-pointer">{analyzing ? 'Analyzing…' : 'Analyze Day With AI'}</button>
             </div>
 
+            {!analyzeDate && <div className="text-sm text-red-600 mt-2">Select a date to analyze</div>}
+            {analyzeDate && dayEntries.length === 0 && <div className="text-sm text-gray-500 mt-2">No entries for selected date. Submit entries to analyze.</div>}
+
             {aiResult && (
               <div className="mt-3 text-sm text-gray-700">
                 {aiResult.error ? (
                   <div className="text-red-600">Error: {aiResult.error}</div>
                 ) : (
                   <div>
-                    <button onClick={() => setAiResult((r)=> ({...r, _open: !r?._open}))} className="text-left w-full pb-2 border-b mb-2 font-bold ">Summary (click to toggle)</button>
+                    <button onClick={() => setAiResult((r) => ({ ...r, _open: !r?._open }))} className="text-left w-full pb-2 border-b mb-2 font-bold ">Summary (click to toggle)</button>
                     {aiResult._open && (
                       <div className="text-sm text-gray-700">{aiResult.data?.summary || aiResult.summary || aiResult.data?.raw || JSON.stringify(aiResult.data)}</div>
                     )}
                     {Array.isArray(aiResult.data?.recommendedActions) && (
                       <div className="mt-2">
                         <p className="font-bold">Recommended Actions</p>
-                        <ul className="list-disc pl-5 text-sm">{aiResult.data.recommendedActions.map((a,i)=>(<li key={i}>{a}</li>))}</ul>
+                        <ul className="list-disc pl-5 text-sm">{aiResult.data.recommendedActions.map((a, i) => (<li key={i}>{a}</li>))}</ul>
                       </div>
                     )}
                     {Array.isArray(aiResult.data?.recommendedReading) && (
                       <div className="mt-2">
                         <p className="font-bold">Recommended Reading</p>
-                        <ul className="list-disc pl-5 text-sm">{aiResult.data.recommendedReading.map((r,i)=>(<li key={i}>{r}</li>))}</ul>
+                        <ul className="list-disc pl-5 text-sm">{aiResult.data.recommendedReading.map((r, i) => (<li key={i}>{r}</li>))}</ul>
                       </div>
                     )}
                     {aiResult.data?.quickTip && (
@@ -386,19 +633,35 @@ const SmartSuggestionEngine = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
             <div className="space-y-4">
               <h3 className="font-bold text-[11px] uppercase tracking-widest text-gray-400">Recommended Reading</h3>
-              <ReadingItem icon={<BookOpen size={18} />} title="Time Management 101" sub="Techniques for busy scholars" bg="bg-orange-100 text-orange-700" />
-              <ReadingItem icon={<Brain size={18} />} title="Burnout Prevention" sub="Academic wellness guide" bg="bg-blue-100 text-blue-700" />
+              <div onClick={() => handleReadingClick('Time Management 101')}>
+                <ReadingItem icon={<BookOpen size={18} />} title="Time Management 101" sub="Techniques for busy scholars" bg="bg-orange-100 text-orange-700" />
+              </div>
+              <div onClick={() => handleReadingClick('Burnout Prevention')}>
+                <ReadingItem icon={<Brain size={18} />} title="Burnout Prevention" sub="Academic wellness guide" bg="bg-blue-100 text-blue-700" />
+              </div>
             </div>
 
             <div className="bg-[#001f3f] rounded-2xl p-6 text-white relative flex flex-col justify-center">
               <p className="text-[10px] font-bold text-blue-300 uppercase tracking-widest mb-4">Quick Tip</p>
-              <h4 className="text-lg font-medium italic leading-relaxed mb-4">"The secret of getting ahead is getting started."</h4>
-              <p className="text-xs opacity-50">— Mark Twain</p>
+              <h4 className="text-lg font-medium italic leading-relaxed mb-4">{generateQuickTip()}</h4>
+              <p className="text-xs opacity-50">{aiResult?.data?.quickTipSource || (summaryCard ? `Progress ${summaryCard.progress}%` : '')}</p>
               <Quote className="absolute right-6 top-6 opacity-5" size={60} />
             </div>
           </div>
         </div>
       </div>
+      {/* modal */}
+      {modalOpen && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-xl w-full">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-bold">{modalContent.title}</h3>
+              <button onClick={() => setModalOpen(false)} className="text-sm text-gray-500">Close</button>
+            </div>
+            <div className="text-sm text-gray-700">{modalContent.body}</div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
