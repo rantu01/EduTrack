@@ -389,39 +389,39 @@ const SmartSuggestionEngine = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#f8faff] p-10 font-sans text-slate-800">
-      <header className="mb-8">
-        <h1 className="text-3xl font-bold text-[#001f3f] tracking-tight">Smart Suggestion Engine</h1>
-        <p className="text-sm text-gray-500 mt-1">Log tasks and get dynamic action cards based on your pressure and progress.</p>
+    <div className="min-h-screen bg-[#f8faff] p-4 md:p-10 font-sans text-slate-800 pb-24 md:pb-0">
+      <header className="mb-6 md:mb-8">
+        <h1 className="text-2xl md:text-3xl font-bold text-[#001f3f] tracking-tight">Smart Suggestion Engine</h1>
+        <p className="text-xs md:text-sm text-gray-500 mt-1">Log tasks and get dynamic action cards based on your pressure and progress.</p>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-8">
         <div className="lg:col-span-6 space-y-6">
 
 
           {/* Day segments: split 24h into 5 parts and collect per-segment activity */}
-          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm mt-4">
+          <div className="bg-white p-4 md:p-6 rounded-2xl border border-gray-100 shadow-sm mt-4">
             <div className="mb-4">
               <p className="text-xs font-bold text-gray-500 mb-1">Day Segments (5 parts) - Record what you did each segment</p>
               <p className="text-xs text-gray-400">Each block already has a time range. Select the activity and add a short note if you want more detail.</p>
             </div>
-            <div className="space-y-4">
+            <div className="space-y-3 md:space-y-4">
               {segments.map((seg, idx) => {
                 return (
-                  <div key={seg.id} className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-4">
-                    <div className="flex items-center justify-between mb-3">
+                  <div key={seg.id} className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-3 md:p-4">
+                    <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-2 mb-3">
                       <div>
-                        <h4 className="font-bold text-slate-800">{seg.label}</h4>
+                        <h4 className="font-bold text-slate-800 text-sm">{seg.label}</h4>
                         <p className="text-xs text-blue-600 font-semibold">🕐 {seg.startTime} - {seg.endTime} · {seg.durationMinutes} mins</p>
                       </div>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-3">
                       <div className="flex flex-col">
-                        <label className="text-xs text-gray-600 font-semibold mb-1">What did you do in this block?</label>
+                        <label className="text-xs text-gray-600 font-semibold mb-1">What did you do?</label>
                         <select
                           value={seg.activity}
                           onChange={(e) => updateSegment(idx, { activity: e.target.value })}
-                          className="rounded border border-blue-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white"
+                          className="rounded border border-blue-200 px-2 md:px-3 py-2 text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white"
                         >
                           <option value="">Select activity</option>
                           {activityOptions.map((option) => (
@@ -432,39 +432,39 @@ const SmartSuggestionEngine = () => {
                         </select>
                       </div>
                       <div className="flex flex-col">
-                        <label className="text-xs text-gray-600 font-semibold mb-1">Short note</label>
+                        <label className="text-xs text-gray-600 font-semibold mb-1">Note</label>
                         <input
                           type="text"
                           value={seg.note}
                           onChange={(e) => updateSegment(idx, { note: e.target.value })}
-                          className="rounded border border-blue-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
-                          placeholder="e.g., solved algebra, watched lecture, lunch break"
+                          className="rounded border border-blue-200 px-2 md:px-3 py-2 text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                          placeholder="e.g., algebra"
                         />
                       </div>
                       <div className="flex flex-col">
-                        <label className="text-xs text-gray-600 font-semibold mb-1">Distraction time (mins)</label>
+                        <label className="text-xs text-gray-600 font-semibold mb-1">Distraction (mins)</label>
                         <input
                           type="number"
                           min="0"
                           value={seg.distractionMinutes}
                           onChange={(e) => updateSegment(idx, { distractionMinutes: e.target.value })}
-                          className="rounded border border-blue-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                          className="rounded border border-blue-200 px-2 md:px-3 py-2 text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
                           placeholder="e.g., 5"
                         />
                       </div>
                       <div className="flex flex-col">
-                        <label className="text-xs text-gray-600 font-semibold mb-1">Why distraction happened</label>
+                        <label className="text-xs text-gray-600 font-semibold mb-1">Why</label>
                         <input
                           type="text"
                           value={seg.distractionReason}
                           onChange={(e) => updateSegment(idx, { distractionReason: e.target.value })}
-                          className="rounded border border-blue-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
-                          placeholder="e.g., mobile, game, notification, chat"
+                          className="rounded border border-blue-200 px-2 md:px-3 py-2 text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                          placeholder="e.g., mobile"
                         />
                       </div>
                     </div>
                     {seg.activity && (
-                      <p className="mt-3 text-xs text-blue-700 font-semibold">Selected: {activityLabelMap[seg.activity] || seg.activity}</p>
+                      <p className="mt-2 md:mt-3 text-xs text-blue-700 font-semibold">Selected: {activityLabelMap[seg.activity] || seg.activity}</p>
                     )}
                   </div>
                 )
@@ -473,15 +473,15 @@ const SmartSuggestionEngine = () => {
 
             {/* Unaccounted time section */}
             {calculateTotalTimes().unaccounted > 0 && (
-              <div className="mt-6 bg-amber-50 border-2 border-amber-300 rounded-xl p-4">
-                <h4 className="font-bold text-amber-900 mb-2">⏰ Unaccounted Time: {calculateTotalTimes().unaccounted} minutes</h4>
-                <p className="text-sm text-amber-800 mb-3">What did you do with this time? Sleep, eating, travel, social time, or something else?</p>
-                <textarea value={unaccountedActivity} onChange={(e) => setUnaccountedActivity(e.target.value)} className="w-full rounded border border-amber-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" placeholder="e.g., 180 mins sleep, 60 mins eating, 120 mins socializing..." rows={2} />
+              <div className="mt-4 md:mt-6 bg-amber-50 border-2 border-amber-300 rounded-xl p-3 md:p-4">
+                <h4 className="font-bold text-amber-900 mb-2 text-sm">⏰ Unaccounted Time: {calculateTotalTimes().unaccounted} minutes</h4>
+                <p className="text-xs md:text-sm text-amber-800 mb-3">What did you do with this time?</p>
+                <textarea value={unaccountedActivity} onChange={(e) => setUnaccountedActivity(e.target.value)} className="w-full rounded border border-amber-300 px-2 md:px-3 py-2 text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" placeholder="e.g., 180 mins sleep, 60 mins eating..." rows={2} />
               </div>
             )}
           </div>
 
-          <form onSubmit={handleSubmit} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-4">
+          <form onSubmit={handleSubmit} className="bg-white p-4 md:p-6 rounded-2xl border border-gray-100 shadow-sm space-y-4">
             {/* Deadlines section */}
             <div>
               <div className="flex justify-between items-center mb-2">
@@ -490,20 +490,20 @@ const SmartSuggestionEngine = () => {
               </div>
               <div className="space-y-2">
                 {deadlines.map((dl) => (
-                  <div key={dl.id} className="grid grid-cols-12 gap-2 items-center bg-gray-50 p-2 rounded">
-                    <input type="text" placeholder="e.g., Math assignment" value={dl.title} onChange={(e) => updateDeadline(dl.id, { title: e.target.value })} className="col-span-4 rounded border px-2 py-1 text-sm" />
-                    <select value={dl.type} onChange={(e) => updateDeadline(dl.id, { type: e.target.value })} className="col-span-3 rounded border px-2 py-1 text-sm">
+                  <div key={dl.id} className="grid grid-cols-12 gap-1 md:gap-2 items-center bg-gray-50 p-2 rounded text-xs md:text-sm">
+                    <input type="text" placeholder="e.g., Math" value={dl.title} onChange={(e) => updateDeadline(dl.id, { title: e.target.value })} className="col-span-4 md:col-span-4 rounded border px-2 py-1 text-xs" />
+                    <select value={dl.type} onChange={(e) => updateDeadline(dl.id, { type: e.target.value })} className="col-span-4 md:col-span-3 rounded border px-1 md:px-2 py-1 text-xs">
                       <option value="assignment">Assignment</option>
                       <option value="exam">Exam</option>
                       <option value="work">Work</option>
                       <option value="project">Project</option>
                       <option value="other">Other</option>
                     </select>
-                    <input type="date" value={dl.date} onChange={(e) => updateDeadline(dl.id, { date: e.target.value })} className="col-span-4 rounded border px-2 py-1 text-sm" />
-                    <button type="button" onClick={() => removeDeadline(dl.id)} className="col-span-1 text-red-600 hover:text-red-800"><X size={18} /></button>
+                    <input type="date" value={dl.date} onChange={(e) => updateDeadline(dl.id, { date: e.target.value })} className="col-span-3 md:col-span-4 rounded border px-1 md:px-2 py-1 text-xs" />
+                    <button type="button" onClick={() => removeDeadline(dl.id)} className="col-span-1 text-red-600 hover:text-red-800"><X size={16} /></button>
                   </div>
                 ))}
-                {deadlines.length === 0 && <div className="text-xs text-gray-400 italic">No deadlines added yet. Click + Add to track tasks.</div>}
+                {deadlines.length === 0 && <div className="text-xs text-gray-400 italic">No deadlines added. Click + Add to track tasks.</div>}
               </div>
             </div>
 
@@ -511,13 +511,13 @@ const SmartSuggestionEngine = () => {
               <label className="text-xs text-gray-500">Mood</label>
               <div className="flex gap-2 mt-2">
                 {['😫', '😐', '😊', '🤩'].map((em) => (
-                  <button key={em} type="button" onClick={() => setMood(em)} className={`px-3 py-2 rounded-lg ${mood === em ? 'bg-blue-50 ring-2 ring-blue-100' : 'bg-gray-50'}`}>{em}</button>
+                  <button key={em} type="button" onClick={() => setMood(em)} className={`px-2 md:px-3 py-2 rounded-lg text-lg md:text-2xl ${mood === em ? 'bg-blue-50 ring-2 ring-blue-100' : 'bg-gray-50'}`}>{em}</button>
                 ))}
               </div>
             </div>
 
             <div className="flex items-center gap-2">
-              <button type="submit" className="flex-1 bg-blue-900 hover:bg-blue-800 text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2 transition-colors">
+              <button type="submit" className="flex-1 bg-blue-900 hover:bg-blue-800 text-white py-2 md:py-3 rounded-lg font-bold flex items-center justify-center gap-2 transition-colors text-sm md:text-base">
                 <Sparkles size={16} />
                 Save & Analyze
               </button>

@@ -242,101 +242,101 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="min-h-screen  p-8 font-sans text-slate-800">
+    <div className="min-h-screen p-4 md:p-8 font-sans text-slate-800 pb-24 md:pb-0">
       {/* Header Section */}
-      <header className="mb-12 animate-fade-in">
+      <header className="mb-6 md:mb-12 animate-fade-in">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-800 bg-clip-text text-transparent flex items-center gap-3 mb-2">
+            <h1 className="text-2xl md:text-4xl font-bold bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-800 bg-clip-text text-transparent flex items-center gap-2 md:gap-3 mb-2">
               Welcome back, {user?.displayName || (user?.email ? user.email.split('@')[0] : 'Friend')}
-              <User className="text-blue-500" size={32} />
+              <User className="text-blue-500 w-6 h-6 md:w-8 md:h-8" />
             </h1>
-            <p className="text-sm font-semibold text-slate-500 tracking-wide">Track your progress and stay focused</p>
+            <p className="text-xs md:text-sm font-semibold text-slate-500 tracking-wide">Track your progress and stay focused</p>
           </div>
         </div>
       </header>
 
       {/* Stats Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 animate-fade-in-delay">
-        <div className="bg-white rounded-2xl p-6 border border-slate-200 hover:border-blue-300 hover:shadow-lg transition-all duration-300 backdrop-blur-sm">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">CGPA</p>
-            <TrendingUp size={20} className="text-green-500" />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 mb-6 md:mb-8 animate-fade-in-delay">
+        <div className="bg-white rounded-xl md:rounded-2xl p-3 md:p-6 border border-slate-200 hover:border-blue-300 hover:shadow-lg transition-all duration-300 backdrop-blur-sm">
+          <div className="flex items-center justify-between mb-2 md:mb-3">
+            <p className="text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-widest">CGPA</p>
+            <TrendingUp size={16} className="text-green-500" />
           </div>
-          <p className="text-3xl font-bold text-blue-600">{stats.cgpa.toFixed(2)}</p>
-          <p className="text-xs text-slate-500 mt-2">Last 7 days</p>
+          <p className="text-xl md:text-3xl font-bold text-blue-600">{stats.cgpa.toFixed(2)}</p>
+          <p className="text-[10px] md:text-xs text-slate-500 mt-1 md:mt-2">Last 7 days</p>
         </div>
 
-        <div className="bg-white rounded-2xl p-6 border border-slate-200 hover:border-blue-300 hover:shadow-lg transition-all duration-300 backdrop-blur-sm">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Attendance</p>
-            <Target size={20} className="text-blue-500" />
+        <div className="bg-white rounded-xl md:rounded-2xl p-3 md:p-6 border border-slate-200 hover:border-blue-300 hover:shadow-lg transition-all duration-300 backdrop-blur-sm">
+          <div className="flex items-center justify-between mb-2 md:mb-3">
+            <p className="text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-widest">Attendance</p>
+            <Target size={16} className="text-blue-500" />
           </div>
-          <p className="text-3xl font-bold text-blue-600">{stats.attendance}%</p>
-          <p className="text-xs text-slate-500 mt-2">Active days</p>
+          <p className="text-xl md:text-3xl font-bold text-blue-600">{stats.attendance}%</p>
+          <p className="text-[10px] md:text-xs text-slate-500 mt-1 md:mt-2">Active days</p>
         </div>
 
-        <div className="bg-white rounded-2xl p-6 border border-slate-200 hover:border-orange-300 hover:shadow-lg transition-all duration-300 backdrop-blur-sm">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Pending</p>
-            <AlertCircle size={20} className="text-orange-500" />
+        <div className="bg-white rounded-xl md:rounded-2xl p-3 md:p-6 border border-slate-200 hover:border-orange-300 hover:shadow-lg transition-all duration-300 backdrop-blur-sm">
+          <div className="flex items-center justify-between mb-2 md:mb-3">
+            <p className="text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-widest">Pending</p>
+            <AlertCircle size={16} className="text-orange-500" />
           </div>
-          <p className="text-3xl font-bold text-orange-600">{stats.pendingAssignments}</p>
-          <p className="text-xs text-slate-500 mt-2">Assignments</p>
+          <p className="text-xl md:text-3xl font-bold text-orange-600">{stats.pendingAssignments}</p>
+          <p className="text-[10px] md:text-xs text-slate-500 mt-1 md:mt-2">Assignments</p>
         </div>
 
-        <div className="bg-white rounded-2xl p-6 border border-slate-200 hover:border-slate-300 hover:shadow-lg transition-all duration-300 backdrop-blur-sm">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Entries</p>
-            <Calendar size={20} className="text-indigo-500" />
+        <div className="bg-white rounded-xl md:rounded-2xl p-3 md:p-6 border border-slate-200 hover:border-slate-300 hover:shadow-lg transition-all duration-300 backdrop-blur-sm">
+          <div className="flex items-center justify-between mb-2 md:mb-3">
+            <p className="text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-widest">Entries</p>
+            <Calendar size={16} className="text-indigo-500" />
           </div>
-          <p className="text-3xl font-bold text-indigo-600">{stats.daysWithEntries}</p>
-          <p className="text-xs text-slate-500 mt-2">Days tracked</p>
+          <p className="text-xl md:text-3xl font-bold text-indigo-600">{stats.daysWithEntries}</p>
+          <p className="text-[10px] md:text-xs text-slate-500 mt-1 md:mt-2">Days tracked</p>
         </div>
       </div>
 
       {/* Time Tracking Section */}
-      <div className="mb-8">
-        <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
-          <Clock size={24} className="text-blue-600" />
+      <div className="mb-6 md:mb-8">
+        <h2 className="text-lg md:text-xl font-bold text-slate-800 mb-3 md:mb-4 flex items-center gap-2">
+          <Clock size={20} className="text-blue-600" />
           Daily Overview
         </h2>
         
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-6">
           {/* Weekly Averages */}
-          <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-all">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">Weekly Averages (7 days)</p>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-transparent rounded-lg">
+          <div className="bg-white rounded-2xl p-4 md:p-6 border border-slate-200 shadow-sm hover:shadow-md transition-all">
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 md:mb-4">Weekly Averages (7 days)</p>
+            <div className="space-y-2 md:space-y-4">
+              <div className="flex items-center justify-between p-2 md:p-3 bg-gradient-to-r from-blue-50 to-transparent rounded-lg">
                 <div className="flex items-center gap-2">
-                  <span className="text-xl">📚</span>
-                  <span className="font-semibold text-slate-700">Study Time</span>
+                  <span className="text-lg md:text-xl">📚</span>
+                  <span className="font-semibold text-slate-700 text-sm">Study Time</span>
                 </div>
-                <p className="text-lg font-bold text-blue-600">{weeklyInsight?.avgStudyTime != null ? formatMinutesToHMS(weeklyInsight.avgStudyTime) : '—'}</p>
+                <p className="text-sm md:text-lg font-bold text-blue-600">{weeklyInsight?.avgStudyTime != null ? formatMinutesToHMS(weeklyInsight.avgStudyTime) : '—'}</p>
               </div>
-              <div className="flex items-center justify-between p-3 bg-gradient-to-r from-indigo-50 to-transparent rounded-lg">
+              <div className="flex items-center justify-between p-2 md:p-3 bg-gradient-to-r from-indigo-50 to-transparent rounded-lg">
                 <div className="flex items-center gap-2">
-                  <span className="text-xl">💼</span>
-                  <span className="font-semibold text-slate-700">Work Time</span>
+                  <span className="text-lg md:text-xl">💼</span>
+                  <span className="font-semibold text-slate-700 text-sm">Work Time</span>
                 </div>
-                <p className="text-lg font-bold text-indigo-600">{weeklyInsight?.avgWorkTime != null ? formatMinutesToHMS(weeklyInsight.avgWorkTime) : '—'}</p>
+                <p className="text-sm md:text-lg font-bold text-indigo-600">{weeklyInsight?.avgWorkTime != null ? formatMinutesToHMS(weeklyInsight.avgWorkTime) : '—'}</p>
               </div>
-              <div className="flex items-center justify-between p-3 bg-gradient-to-r from-emerald-50 to-transparent rounded-lg">
+              <div className="flex items-center justify-between p-2 md:p-3 bg-gradient-to-r from-emerald-50 to-transparent rounded-lg">
                 <div className="flex items-center gap-2">
-                  <span className="text-xl">😴</span>
-                  <span className="font-semibold text-slate-700">Rest Time</span>
+                  <span className="text-lg md:text-xl">😴</span>
+                  <span className="font-semibold text-slate-700 text-sm">Rest Time</span>
                 </div>
-                <p className="text-lg font-bold text-emerald-600">{weeklyInsight?.avgRestTime != null ? formatMinutesToHMS(weeklyInsight.avgRestTime) : '—'}</p>
+                <p className="text-sm md:text-lg font-bold text-emerald-600">{weeklyInsight?.avgRestTime != null ? formatMinutesToHMS(weeklyInsight.avgRestTime) : '—'}</p>
               </div>
             </div>
           </div>
 
           {/* Today's Breakdown */}
-          <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-all">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">Today's Breakdown</p>
+          <div className="bg-white rounded-2xl p-4 md:p-6 border border-slate-200 shadow-sm hover:shadow-md transition-all">
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 md:mb-4">Today's Breakdown</p>
             {entriesLoading ? (
-              <div className="flex items-center justify-center h-32">
-                <div className="text-sm text-slate-500">Loading…</div>
+              <div className="flex items-center justify-center h-20 md:h-32">
+                <div className="text-xs md:text-sm text-slate-500">Loading…</div>
               </div>
             ) : summaryCard ? (
               <div className="space-y-4">
