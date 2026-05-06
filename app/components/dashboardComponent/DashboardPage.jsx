@@ -376,7 +376,7 @@ const Dashboard = () => {
         {/* Left: AI Analysis & Daily Input */}
         <div className="lg:col-span-8">
           {/* AI Analysis Panel */}
-          <div className="bg-white rounded-2xl p-8 border border-slate-200 shadow-sm mb-6 hover:shadow-md transition-all">
+          {/* <div className="bg-white rounded-2xl p-8 border border-slate-200 shadow-sm mb-6 hover:shadow-md transition-all">
             <div className="flex items-center gap-2 mb-6">
               <Lightbulb size={24} className="text-amber-500" />
               <h2 className="text-xl font-bold text-slate-800">AI Analysis</h2>
@@ -409,7 +409,7 @@ const Dashboard = () => {
                 </div>
               )}
             </div>
-          </div>
+          </div> */}
 
           {/* Selected Entry Viewer */}
           <div className="animate-fade-in-delay">
