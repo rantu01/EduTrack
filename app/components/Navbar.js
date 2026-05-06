@@ -59,9 +59,7 @@ const Navbar = () => {
       </div>
 
       <div className="flex items-center gap-5 text-gray-500">
-        <button className="hover:text-gray-800 transition-colors">
-          <Bell size={20} />
-        </button>
+        
 
         {user ? (
           <div className="flex items-center gap-3">

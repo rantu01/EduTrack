@@ -20,6 +20,7 @@ const LoginPage = () => {
   const [studentId, setStudentId] = useState('')
   const [registrationKey, setRegistrationKey] = useState('')
   const [message, setMessage] = useState('')
+  const [loading, setLoading] = useState(false)
   const router = useRouter()
 
   const REQUIRE_REG_KEY = process.env.NEXT_PUBLIC_REQUIRE_REG_KEY === 'true'
@@ -28,6 +29,7 @@ const LoginPage = () => {
   async function handleSubmit(e) {
     e.preventDefault()
     setMessage('')
+    setLoading(true)
     try {
       if (formMode === 'register') {
         if (password !== confirmPassword) {
@@ -62,16 +64,28 @@ const LoginPage = () => {
 
       // login
       await signInWithEmailAndPassword(auth, email, password)
-      // navigate to dashboard after successful login
+      // show success toast then navigate
+      await Swal.fire({
+        icon: 'success',
+        title: 'Signed in',
+        text: 'Welcome back!',
+        showConfirmButton: false,
+        timer: 1200,
+        background: '#ffffff',
+        confirmButtonColor: '#2563eb'
+      })
       router.push('/dashboard')
     } catch (err) {
       console.error(err)
       setMessage(err.message || 'Auth error')
+    } finally {
+      setLoading(false)
     }
   }
 
   async function handleGoogleSignIn() {
     setMessage('')
+    setLoading(true)
     try {
       const provider = new GoogleAuthProvider()
       const result = await signInWithPopup(auth, provider)
@@ -86,11 +100,20 @@ const LoginPage = () => {
           provider: 'google',
         })
       }
-      // navigate to dashboard after Google sign-in
+      await Swal.fire({
+        icon: 'success',
+        title: 'Signed in',
+        text: 'Welcome back!',
+        showConfirmButton: false,
+        timer: 1200,
+        confirmButtonColor: '#2563eb'
+      })
       router.push('/dashboard')
     } catch (err) {
       console.error(err)
       setMessage(err.message || 'Google sign-in error')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -177,6 +200,7 @@ const LoginPage = () => {
                   placeholder="John Doe"
                   className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm"
                   required
+                  disabled={loading}
                 />
               </div>
             )}
@@ -191,6 +215,7 @@ const LoginPage = () => {
                   placeholder="e.g. j.doe@university.edu"
                   className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm"
                   required
+                  disabled={loading}
                 />
                 <Mail className="absolute right-3 top-3 text-gray-400" size={18} />
               </div>
@@ -206,6 +231,7 @@ const LoginPage = () => {
                   placeholder="2024-12345"
                   className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm"
                   required
+                  disabled={loading}
                 />
               </div>
             )}
@@ -220,6 +246,7 @@ const LoginPage = () => {
                   placeholder="********"
                   className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm"
                   required
+                  disabled={loading}
                 />
                 <EyeOff className="absolute right-3 top-3 text-gray-400" size={18} />
               </div>
@@ -235,24 +262,32 @@ const LoginPage = () => {
                   placeholder="********"
                   className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm"
                   required
+                  disabled={loading}
                 />
               </div>
             )}
 
-            <button className="w-full bg-[#001f3f] text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2 hover:bg-[#002d5c] transition-colors group" type="submit">
-              {formMode === 'login' ? (
-                <>Sign In <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" /></>
+            <button disabled={loading} className={`w-full bg-[#001f3f] text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2 transition-colors group ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-[#002d5c]'}`} type="submit">
+              {loading ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  {formMode === 'login' ? 'Signing in...' : 'Registering...'}
+                </>
               ) : (
-                <>Register Student <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" /></>
+                formMode === 'login' ? (
+                  <>Sign In <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" /></>
+                ) : (
+                  <>Register Student <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" /></>
+                )
               )}
             </button>
           </form>
 
           {/* Google sign-in */}
           <div className="mt-4">
-            <button onClick={handleGoogleSignIn} className="w-full border border-gray-200 py-2 rounded-md flex items-center justify-center gap-3 hover:bg-gray-50">
+            <button onClick={handleGoogleSignIn} disabled={loading} className={`w-full border border-gray-200 py-2 rounded-md flex items-center justify-center gap-3 ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-gray-50'}`}>
               <img src="https://t3.ftcdn.net/jpg/03/88/07/84/360_F_388078454_mKtbdXYF9cyQovCCTsjqI0gbfu7gCcSp.jpg" alt="Google" className="w-5 h-5" />
-              <span className="text-sm font-medium">Continue with Google</span>
+              {loading ? <><span className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" /> <span className="text-sm font-medium">Signing in...</span></> : <span className="text-sm font-medium">Continue with Google</span>}
             </button>
           </div>
 

@@ -74,6 +74,7 @@ const SmartSuggestionEngine = () => {
   const [aiResult, setAiResult] = useState(null)
   const [entriesLoading, setEntriesLoading] = useState(false)
   const [dayEntries, setDayEntries] = useState([])
+  const [todaysEntry, setTodaysEntry] = useState(null)
   const [summaryCard, setSummaryCard] = useState(null)
 
   useEffect(() => {
@@ -143,6 +144,7 @@ const SmartSuggestionEngine = () => {
 
         if (!mounted) return
         setDayEntries(items)
+        setTodaysEntry(items && items.length > 0 ? items[0] : null)
 
         // compute aggregated numbers
         const totalStudy = items.reduce((s, it) => s + (Number(it.studyTime) || 0), 0)
@@ -287,6 +289,18 @@ const SmartSuggestionEngine = () => {
       })
       .filter(Boolean)
       .join(' | ')
+    // if there's already an entry today, ask user whether to replace
+    if (todaysEntry) {
+      const confirm = await Swal.fire({
+        title: 'Replace today\'s entry?',
+        text: 'You already submitted an entry for this date. Do you want to replace it?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Replace',
+        cancelButtonText: 'Keep existing',
+      })
+      if (!confirm.isConfirmed) return
+    }
 
     const payload = {
       userId: user.uid,
@@ -302,6 +316,9 @@ const SmartSuggestionEngine = () => {
       unaccountedTime: times.unaccounted,
       unaccountedActivity: unaccountedActivity,
       timestamp,
+      distractionSummary,
+      distractionTime: segments.reduce((sum, segment) => sum + (Number(segment.distractionMinutes) || 0), 0),
+      existingId: todaysEntry ? (todaysEntry._id && todaysEntry._id.$oid ? todaysEntry._id.$oid : todaysEntry._id) : undefined,
     }
 
     try {

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import clientPromise from '../../../lib/mongodb'
+import { ObjectId } from 'mongodb'
 
 function timeToMinutes(time) {
   if (!time || typeof time !== 'string' || !time.includes(':')) return 0
@@ -98,7 +99,7 @@ export async function POST(request) {
       workTime: aggWork,
       restTime: aggRest,
       // additional metrics
-      segments: segments,
+      segments: normalizedSegments,
       mobileTime: aggMobile,
       gameTime: aggGame,
       distractions: aggDistractions,
@@ -108,10 +109,30 @@ export async function POST(request) {
       deadlines: Array.isArray(data.deadlines) ? data.deadlines : [],
       timestamp: data.timestamp ? new Date(data.timestamp) : new Date(),
       createdAt: new Date(),
+      updatedAt: new Date(),
     }
 
     const client = await clientPromise
     const db = client.db('EduTrack')
+    // if client provided existingId, attempt to replace the existing document
+    if (data.existingId) {
+      try {
+        const filter = { _id: new ObjectId(String(data.existingId)) }
+        const existing = await db.collection('dailyInputs').findOne(filter)
+        if (existing) {
+          // preserve createdAt
+          toInsert.createdAt = existing.createdAt || toInsert.createdAt
+          toInsert._id = existing._id
+          const rep = await db.collection('dailyInputs').replaceOne(filter, toInsert)
+          if (rep.matchedCount > 0) {
+            return NextResponse.json({ success: true, replacedId: String(data.existingId), replaced: true }, { status: 200 })
+          }
+        }
+      } catch (e) {
+        console.warn('Replace failed, will insert new document', e)
+      }
+    }
+
     const result = await db.collection('dailyInputs').insertOne(toInsert)
     return NextResponse.json({ success: true, id: result.insertedId }, { status: 201 })
   } catch (err) {
