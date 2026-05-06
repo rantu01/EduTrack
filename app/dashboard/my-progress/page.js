@@ -12,6 +12,7 @@ export default function MyProgressPage() {
       <p className="text-gray-600">Placeholder page to show progress charts and stats2.</p>
       <p className="text-gray-600">Placeholder page to show progress charts and stats3.</p>
       <p className="text-gray-600">Placeholder page to show progress charts and stats4.</p>
+      
     </main>
   )
 }
