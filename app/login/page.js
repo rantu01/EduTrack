@@ -175,9 +175,9 @@ const LoginPage = () => {
               }`}
             >
               <GraduationCap size={18} />
-              <span className="text-sm font-medium">Student</span>
+              <span className="text-sm font-medium text-white">Student</span>
             </button>
-            <button
+            {/* <button
               onClick={() => setUserType('admin')}
               className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md transition-all ${
                 userType === 'admin' ? 'bg-[#001f3f] text-white shadow-md' : 'text-gray-500'
@@ -185,7 +185,7 @@ const LoginPage = () => {
             >
               <ShieldCheck size={18} />
               <span className="text-sm font-medium">Admin</span>
-            </button>
+            </button> */}
           </div>
 
           {/* Form */}

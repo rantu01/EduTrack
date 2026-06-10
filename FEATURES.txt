@@ -1,0 +1,12 @@
+User Accounts: Registration and login (using Firebase Authentication)
+Dashboard: User overview and navigation
+Course Page: Course listings and detailed information
+Daily Input: User daily study logs
+AI Analysis: Analyze inputs and provide suggestions (api/ai-analyze)
+Study Planner: Study planning and reminders
+Progress Tracking: Graphs, reports, and progress indicators
+Responsive UI: Supports both mobile and desktop
+Data Storage: Integration of Firebase and MongoDB
+Security & Validation: Input validation and session handling
+SEO & Accessibility: Improved search engine optimization and accessibility
+Unit & Integration Testing
