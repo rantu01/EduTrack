@@ -257,7 +257,7 @@ const Dashboard = () => {
       </header>
 
       {/* Stats Cards Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 mb-6 md:mb-8 animate-fade-in-delay">
+      {/* <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 mb-6 md:mb-8 animate-fade-in-delay">
         <div className="bg-white rounded-xl md:rounded-2xl p-3 md:p-6 border border-slate-200 hover:border-blue-300 hover:shadow-lg transition-all duration-300 backdrop-blur-sm">
           <div className="flex items-center justify-between mb-2 md:mb-3">
             <p className="text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-widest">CGPA</p>
@@ -293,7 +293,7 @@ const Dashboard = () => {
           <p className="text-xl md:text-3xl font-bold text-indigo-600">{stats.daysWithEntries}</p>
           <p className="text-[10px] md:text-xs text-slate-500 mt-1 md:mt-2">Days tracked</p>
         </div>
-      </div>
+      </div> */}
 
       {/* Time Tracking Section */}
       <div className="mb-6 md:mb-8">
